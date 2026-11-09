@@ -1,0 +1,6 @@
+school,sex,age,address,famsize,Pstatus,Medu,Fedu,Mjob,Fjob,reason,guardian,traveltime,studytime,failures,schoolsup,famsup,paid,activities,nursery,higher,internet,romantic,famrel,freetime,goout,Dalc,Walc,health,absences,G1,G2,Predicted_Result
+GP,M,15,U,GT3,T,4,4,health,health,other,father,1,1,0,no,yes,yes,no,yes,yes,yes,no,5,4,2,1,1,5,0,11,12,NOT AT RISK
+GP,M,16,U,GT3,T,2,3,other,other,home,father,2,1,0,no,no,no,no,yes,yes,yes,no,5,3,3,1,1,3,0,13,12,NOT AT RISK
+GP,M,17,U,GT3,T,2,3,other,other,course,father,2,1,0,no,no,no,no,yes,yes,yes,no,5,2,2,1,1,2,2,9,12,NOT AT RISK
+GP,F,16,U,GT3,T,2,3,services,teacher,other,mother,1,2,0,yes,no,no,no,yes,yes,yes,no,2,3,1,1,1,3,0,13,13,NOT AT RISK
+GP,F,17,U,GT3,T,2,2,at_home,at_home,course,mother,1,3,0,no,yes,no,yes,yes,yes,yes,no,4,3,3,1,1,4,0,12,12,NOT AT RISK
