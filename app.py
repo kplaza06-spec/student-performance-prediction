@@ -1,7 +1,14 @@
 
 import streamlit as st
 import pandas as pd
-import joblib
+
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.ensemble import RandomForestClassifier
+
 
 st.set_page_config(
     page_title="Student Performance Prediction",
@@ -9,71 +16,111 @@ st.set_page_config(
     layout="wide"
 )
 
+
 @st.cache_resource
-def load_model():
-    return joblib.load("student_model.pkl")
+def load_and_train_model():
+    data = pd.read_csv("student_data.csv")
+    data = data.drop_duplicates()
 
-@st.cache_data
-def load_data():
-    return pd.read_csv("student_data.csv")
+    if "G3" not in data.columns:
+        raise ValueError("The dataset must contain the G3 column.")
 
-model = load_model()
-data = load_data()
+    y = (data["G3"] < 10).astype(int)
+    X = data.drop(columns=["G3"])
 
-st.title("🎓 Student Performance Prediction System")
-st.caption("Predictive system for identifying students who may need academic support.")
+    numeric_cols = X.select_dtypes(include="number").columns.tolist()
+    categorical_cols = X.select_dtypes(exclude="number").columns.tolist()
 
-st.divider()
+    numeric_pipe = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler())
+    ])
 
-# Dashboard metrics
-st.subheader("📊 Dashboard Overview")
+    categorical_pipe = Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(handle_unknown="ignore"))
+    ])
 
-c1, c2, c3 = st.columns(3)
+    preprocessor = ColumnTransformer([
+        ("numeric", numeric_pipe, numeric_cols),
+        ("categorical", categorical_pipe, categorical_cols)
+    ])
 
-c1.metric("Total Student Records", len(data))
-c2.metric("Average Final Grade", round(data["G3"].mean(), 2))
-c3.metric(
-    "Historical At-Risk Students",
-    int((data["G3"] < 10).sum())
-)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.20,
+        random_state=42,
+        stratify=y
+    )
 
-st.divider()
+    model = Pipeline([
+        ("preprocessor", preprocessor),
+        ("classifier", RandomForestClassifier(
+            n_estimators=100,
+            random_state=42,
+            class_weight="balanced"
+        ))
+    ])
 
-# Dataset preview
-st.subheader("📋 Student Dataset Preview")
-st.dataframe(data.head(10), use_container_width=True)
+    model.fit(X_train, y_train)
 
-# Download sample input
-st.subheader("📥 Sample Input")
+    return model, data, X.columns.tolist()
 
-template = data.drop(columns=["G3"]).head(5)
 
-st.download_button(
-    "Download Sample Input CSV",
-    template.to_csv(index=False),
-    "sample_prediction_input.csv",
-    "text/csv"
-)
+try:
+    model, data, required_columns = load_and_train_model()
 
-st.divider()
+    st.title("🎓 Student Performance Prediction System")
+    st.caption(
+        "Predictive system for identifying students "
+        "who may need academic support."
+    )
 
-# Upload CSV
-st.subheader("🔍 Predict Student Performance")
+    st.divider()
 
-uploaded = st.file_uploader(
-    "Upload a student CSV file",
-    type=["csv"]
-)
+    st.subheader("📊 Dashboard Overview")
 
-if uploaded is not None:
-    try:
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric("Total Student Records", len(data))
+    c2.metric("Average Final Grade", round(data["G3"].mean(), 2))
+    c3.metric(
+        "Historical At-Risk Students",
+        int((data["G3"] < 10).sum())
+    )
+
+    st.divider()
+
+    st.subheader("📋 Student Dataset Preview")
+    st.dataframe(data.head(10), use_container_width=True)
+
+    st.subheader("📥 Sample Input")
+
+    template = data[required_columns].head(5)
+
+    st.download_button(
+        "Download Sample Input CSV",
+        template.to_csv(index=False),
+        "sample_prediction_input.csv",
+        "text/csv"
+    )
+
+    st.divider()
+
+    st.subheader("🔍 Predict Student Performance")
+
+    uploaded = st.file_uploader(
+        "Upload a student CSV file",
+        type=["csv"]
+    )
+
+    if uploaded is not None:
         new_data = pd.read_csv(uploaded)
 
         if new_data.empty:
             st.warning("The uploaded CSV contains no records.")
         else:
-            required_columns = list(model.feature_names_in_)
-
             missing = [
                 col for col in required_columns
                 if col not in new_data.columns
@@ -90,14 +137,12 @@ if uploaded is not None:
                 )
 
                 results = new_data.copy()
-
                 results["Prediction"] = [
                     "AT RISK" if p == 1 else "NOT AT RISK"
                     for p in predictions
                 ]
 
                 st.success("Prediction completed!")
-
                 st.subheader("Prediction Results")
                 st.dataframe(results, use_container_width=True)
 
@@ -115,19 +160,22 @@ if uploaded is not None:
                     "text/csv"
                 )
 
-    except Exception as e:
-        st.error(f"Unable to process CSV: {e}")
+    st.divider()
 
-st.divider()
+    st.subheader("⚠️ Responsible Use")
+    st.write(
+        "This is a classroom prototype using historical data. "
+        "Predictions are estimates and must not be used as the "
+        "sole basis for academic decisions. Faculty members "
+        "should review each student's situation and provide "
+        "appropriate support."
+    )
 
-st.subheader("⚠️ Responsible Use")
+    st.caption(
+        "Student Performance Prediction System | Data Mining Laboratory"
+    )
 
-st.write(
-    "This is a classroom prototype using historical data. "
-    "Predictions are estimates and must not be used as the "
-    "sole basis for academic decisions. Faculty members "
-    "should review each student's situation and provide "
-    "appropriate support."
-)
+except Exception as e:
+    st.error(f"Unable to start the application: {e}")
 
 st.caption("Student Performance Prediction System | Data Mining Laboratory")
